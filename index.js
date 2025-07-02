@@ -45,7 +45,8 @@ const client = new MongoClient(process.env.MONGODB_URI, {
 });
 async function run() {
   const plantsCollection = client.db("plantdb").collection("plants");
-  const ordersCollection = client.db("plantdb").collection('orders')
+  const ordersCollection = client.db("plantdb").collection('orders');
+  const userCollection = client.db("plantdb").collection("users")
 
   try {
     // Generate jwt token
@@ -118,6 +119,29 @@ async function run() {
 
       res.send({ clientSecret: paymentIntent?.client_secret });
     });
+
+
+    // save or update an users info in DB
+    app.post("/user", async(req, res) => {
+      const userData = req.body;
+      userData.role = "customer"
+      userData.created_at = Date.now()
+      userData.last_loggedIn = Date.now()
+
+      const query = {email: userData?.email}
+
+      const userAlreadyExist = await userCollection.findOne(query)
+      console.log("User Already Exists: ", userAlreadyExist);
+      console.log("User Already Exists: ", !!userAlreadyExist);
+
+      if(!!userAlreadyExist) {
+        const result = await userCollection.updateOne(query, {$set: {last_loggedIn: Date.now()}})
+        return res.send(result)
+      }
+
+      const result = await userCollection.insertOne(userData)
+      res.send(result)
+    })
 
 
     // save order data in orders collection in DB
