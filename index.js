@@ -125,22 +125,29 @@ async function run() {
     app.post("/user", async(req, res) => {
       const userData = req.body;
       userData.role = "customer"
-      userData.created_at = Date.now()
-      userData.last_loggedIn = Date.now()
+      userData.created_at = new Date().toISOString()
+      userData.last_loggedIn = new Date().toISOString()
 
       const query = {email: userData?.email}
 
       const userAlreadyExist = await userCollection.findOne(query)
-      console.log("User Already Exists: ", userAlreadyExist);
-      console.log("User Already Exists: ", !!userAlreadyExist);
 
       if(!!userAlreadyExist) {
-        const result = await userCollection.updateOne(query, {$set: {last_loggedIn: Date.now()}})
+        const result = await userCollection.updateOne(query, {$set: {last_loggedIn: new Date().toISOString()}})
         return res.send(result)
       }
 
       const result = await userCollection.insertOne(userData)
       res.send(result)
+    })
+
+
+    // get a user's role
+    app.get("/user/role/:email", async(req, res) => {
+      const email = req.params.email;
+      const result = await userCollection.findOne({email})
+      if(!result) return res.status(404).send({message: "User not Found"})
+      res.send({role: result?.role})
     })
 
 
