@@ -177,6 +177,19 @@ async function run() {
     })
 
 
+    // Get All user's for Admin
+    app.get("/all-users", verifyToken, async(req, res) => {
+      const filter = {
+        email: {
+          $ne: req?.user?.email
+        }
+      }
+      console.log(filter);
+      const result = await userCollection.find(filter).toArray()
+      res.send(result);
+    })
+
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
