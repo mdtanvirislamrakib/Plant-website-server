@@ -220,6 +220,47 @@ async function run() {
       res.send(result)
     })
 
+
+    // admin stats
+    app.get("/admin-stats", async(req, res) => {
+      const totalAdmin = await userCollection.countDocuments({role: "admin"})
+      const totalUser = await userCollection.estimatedDocumentCount() - totalAdmin;
+      const totalPlant = await plantsCollection.estimatedDocumentCount();
+      const totalOrder = await ordersCollection.estimatedDocumentCount();
+
+      // MongoDB aggregation
+      const result = await ordersCollection.aggregate([
+        {
+          $addFields: {
+            createdAt: {$toDate: '$_id'}
+          }
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: {
+                format: '%Y-%m-%d', 
+                date: "$createdAt"
+              }
+            },
+            revenew: {$sum: "$price"},
+            order: {$sum: 1}
+          }
+        }
+      ]).toArray()
+
+      const barChartData = result.map(data => ({
+        date: data?._id,
+        revenew: data?.revenew,
+        order: data?.order
+      }))
+
+      const totalRevenew = result.reduce((sum, data) => sum + data?.revenew, 0)
+
+      res.send({totalUser, totalPlant, totalOrder, totalRevenew, barChartData})
+    })
+
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
