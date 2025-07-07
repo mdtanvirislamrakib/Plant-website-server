@@ -184,11 +184,26 @@ async function run() {
           $ne: req?.user?.email
         }
       }
-      console.log(filter);
       const result = await userCollection.find(filter).toArray()
       res.send(result);
     })
 
+    
+    // Update a user role
+    app.patch("/user/role/update/:email", verifyToken, async(req, res) => {
+      const {email} = req.params;
+      const {role} = req?.body;
+      const filter = {email: email}
+      const updateDoc = {
+        $set: {
+          role,
+          status: "verified"
+        }
+      }
+
+      const result = await userCollection.updateOne(filter, updateDoc)
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
