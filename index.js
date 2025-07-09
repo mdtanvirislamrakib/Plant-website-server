@@ -49,6 +49,36 @@ async function run() {
   const userCollection = client.db("plantdb").collection("users")
 
   try {
+
+    // verify Admin midelware
+    const verifyAdmin = async(req, res, next) => {
+
+      const email = req?.user?.email
+      const user = await userCollection.findOne({email})
+
+      if(!user || user?.role !== "admin") {
+        return res.status(403).send({message: "Admin only actions"})
+      }
+
+      next();
+    }
+
+    // verify Seller midelware
+    const verifySeller = async(req, res, next) => {
+
+      const email = req?.user?.email
+      const user = await userCollection.findOne({email})
+
+      if(!user || user?.role !== "seller") {
+        return res.status(403).send({message: "Seller only actions"})
+      }
+
+      next();
+    }
+
+
+
+
     // Generate jwt token
     app.post("/jwt", async (req, res) => {
       const email = req.body;
@@ -79,7 +109,7 @@ async function run() {
     });
 
     // add a plant in db
-    app.post("/add-plant", async (req, res) => {
+    app.post("/add-plant", verifyToken, verifySeller, async (req, res) => {
       const plant = req.body;
       const result = await plantsCollection.insertOne(plant);
       res.send(result);
@@ -159,6 +189,23 @@ async function run() {
     })
 
 
+    // get add order data info for customer
+    app.get("/orders/customer/:email", verifyToken, async(req, res) => {
+      const email = req.params.email;
+      const filter = {'customer.email' : email}
+      const result = await ordersCollection.find(filter).toArray();
+      res.send(result)
+    })
+
+
+    // get add order data info for seller
+    app.get("/orders/seller/:email", verifyToken, verifySeller, async(req, res) => {
+      const email = req.params.email;
+      const filter = {'seller.email' : email}
+      const result = await ordersCollection.find(filter).toArray();
+      res.send(result)
+    })
+
     // update plant quantity(increase/decrease)
     app.patch("/quantity-update/:id", async(req, res) => {
       const id = req.params.id;
@@ -178,7 +225,7 @@ async function run() {
 
 
     // Get All user's for Admin
-    app.get("/all-users", verifyToken, async(req, res) => {
+    app.get("/all-users", verifyToken, verifyAdmin, async(req, res) => {
       const filter = {
         email: {
           $ne: req?.user?.email
@@ -190,7 +237,7 @@ async function run() {
 
     
     // Update a user role
-    app.patch("/user/role/update/:email", verifyToken, async(req, res) => {
+    app.patch("/user/role/update/:email", verifyToken, verifyAdmin, async(req, res) => {
       const {email} = req.params;
       const {role} = req?.body;
       const filter = {email: email}
@@ -222,7 +269,7 @@ async function run() {
 
 
     // admin stats
-    app.get("/admin-stats", async(req, res) => {
+    app.get("/admin-stats", verifyToken, verifyAdmin, async(req, res) => {
       const totalAdmin = await userCollection.countDocuments({role: "admin"})
       const totalUser = await userCollection.estimatedDocumentCount() - totalAdmin;
       const totalPlant = await plantsCollection.estimatedDocumentCount();
